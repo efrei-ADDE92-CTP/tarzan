@@ -45,5 +45,30 @@ if training_score > test_score:
     print('Model is overfitting')
 else:
     print('Model is not overfitting')
-    
+
+# Save the model as a pickle in a file with the name knn_model.pkl using joblib
 joblib.dump(knn, 'knn_model.pkl')
+
+# Create a Flask app
+
+app = Flask(__name__)
+
+# Load the model
+model = joblib.load('knn_model.pkl')
+
+# Create a route for predictions
+@app.route('/predict', methods=['POST'])
+def predict():
+    # Get the data from the POST request.
+    data = request.get_json(force=True)
+
+    # Make prediction using model loaded from disk as per the data.
+    prediction = model.predict([data['sl'], data['sw'], data['pl'], data['pw']])
+
+    # Take the first value of prediction
+    output = prediction[0]
+
+    return jsonify(output)
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0",port=5000, debug=True)
