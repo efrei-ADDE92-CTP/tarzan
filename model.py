@@ -26,7 +26,7 @@ accuracy = knn.score(X_test, y_test)
 print('Test set accuracy: {:.2f}'.format(accuracy))
 
 # Make predictions on unseen data
-X_new = [[5.1, 3.5, 1.4, 0.2], [6.3, 3.3, 4.7, 1.6]]
+X_new = [[5.1, 3.5, 1.4, 0.2], [6.3, 3.3, 4.7, 1.6]] # data : [ [sl, sw, pl, pw ]]
 
 predictions = knn.predict(X_new)
 print('Predictions: {}'.format(predictions))
@@ -56,17 +56,27 @@ app = Flask(__name__)
 # Load the model
 model = joblib.load('knn_model.pkl')
 
+# Create a route for the home page (just for test)
+@app.route('/')
+def home():
+    return "Hello, World!"
+
 # Create a route for predictions
 @app.route('/predict', methods=['POST'])
 def predict():
     # Get the data from the POST request.
     data = request.get_json(force=True)
 
-    # Make prediction using model loaded from disk as per the data.
-    prediction = model.predict([data['sl'], data['sw'], data['pl'], data['pw']])
+    # reshape data
+    #data = [data['sl'], data['sw'], data['pl'], data['pw']]
 
+    # Make prediction using model loaded from disk as per the data.
+    prediction = model.predict(data)
+
+    # labels
+    iris_labels = ['iris setosa', 'iris versicolor', 'iris virginica']
     # Take the first value of prediction
-    output = prediction[0]
+    output = iris_labels[prediction[0]]
 
     return jsonify(output)
 
