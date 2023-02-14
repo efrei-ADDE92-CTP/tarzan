@@ -15,4 +15,5 @@ COPY . /app
 EXPOSE 5000
 
 # run the command to start app
-CMD flask run --host 0.0.0.0 --port=5000
+#CMD ["flask", "run", "-h", "0.0.0.0", "-p", "5000"]
+CMD ["python", "model.py"]
