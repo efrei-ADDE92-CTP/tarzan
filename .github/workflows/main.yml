@@ -1,0 +1,71 @@
+
+on: [push]
+
+name: Docker_Container_Workflow
+
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+        steps:
+        
+        # Checkout the repo
+        - name: 'Checkout GitHub Action'
+          uses: actions/checkout@main
+        
+        # Login to Azure
+        - name: 'Login via Azure CLI'
+          uses: azure/login@v1
+          with:
+            creds: ${{ secrets.AZURE_CREDENTIALS }}
+            
+        # Login to Azure Container Registry
+        - name: 'Loginto ACR'
+          uses: azure/docker-login@v1
+          with:
+            login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+            username: ${{ secrets.REGISTRY_USERNAME }}
+            password: ${{ secrets.REGISTRY_PASSWORD }}
+        
+        # Lint Dockerfile
+        - name: 'Hadolint Dockefile'
+          id: hadolint_docker
+          run: |
+            OUTPUT=$(docker run --rm -i hadolint/hadolint < dockerfile | wc -l)
+            echo "::set-output name=OUTPUT::$OUTPUT"  
+        
+        # Build and push image to ACR
+        - name: 'Build and push image'
+          if: steps.hadolint_docker.outputs.OUTPUT==0
+          run: |
+            docker build . -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/tarzan:v1
+            docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/tarzan:v1
+            
+        # Deploy to Azure Container App
+        - name: 'Deploy to Azure Container App'
+          uses: 'azure/aci-deploy@v1'
+          with:
+            containerName: container-app-tarzan
+            resource-group: ${{ secrets.RESOURCE_GROUP }}
+            imageToDeploy: ${{ secrets.REGISTRY_LOGIN_SERVER }}/tarzan:v1
+            containerAppEnvironment: grp2-env
+        
+        # Updating Azure Container App
+        - name: Update Azure Container App
+          uses: azure/CLI@v1
+          with:
+            inlineScript: |
+              az containerapp update \
+                -n container-app-tarzan \
+                -g ${{ secrets.RESOURCE_GROUP }} \
+                --min-replicas 0 \
+                --max-replicas 10 \
+                --scale-rule-name my-http-rule \
+                --scale-rule-type http \
+                --scale-rule-http-concurrency 10
+              az containerapp ingress enable \
+                -n container-app-tarzan \
+                -g ${{ secrets.RESOURCE_GROUP }} \
+                --type external \
+                --allow-insecure \
+                --target-port 80 \
+                --transport auto
